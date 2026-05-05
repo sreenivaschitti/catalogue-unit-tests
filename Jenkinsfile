@@ -1,7 +1,7 @@
 // Jenkinsfile
 
 // Load the shared library configured in Jenkins (named 'jenkins-test-library')
-@Library('jenkins-test-library') _
+// @Library('jenkins-test-library') _
 
 // Define a map with configuration that we will pass to the shared library step
 def configMap = [
@@ -18,5 +18,5 @@ if (env.BRANCH_NAME?.equalsIgnoreCase('main')) {
     echo 'Current branch is main, skipping testPipeline for now (checking later)'
 } else {
     // For other branches, call the shared library pipeline
-    testPipeline(configMap)
+    nodeJSEKSPipeline(configMap)
 }
