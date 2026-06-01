@@ -1,22 +1,121 @@
-// Jenkinsfile
+pipeline {
+            agent {
+                node {
 
-// Load the shared library configured in Jenkins (named 'jenkins-test-library')
-// @Library('jenkins-test-library') _
+                        label 'roboshop'
 
-// Define a map with configuration that we will pass to the shared library step
-def configMap = [
-    project  : 'roboshop',
-    component: 'catalogue'
-]
+                }
+            }
 
-// Simple log to show that the Jenkinsfile started
-echo 'Triggering the library pipeline'
+            environment {
 
-// env.BRANCH_NAME is provided by Jenkins (in multibranch or similar jobs)
-if (env.BRANCH_NAME?.equalsIgnoreCase('main')) {
-    // If branch is 'main', just print a message for now
-    echo 'Current branch is main, skipping testPipeline for now (checking later)'
-} else {
-    // For other branches, call the shared library pipeline
-    nodeJSEKSPipeline(configMap)
-}
+                appversion = ""
+                acc_id = "442940292368"
+            }
+                // options { disableConcurrentBuilds() }
+                //  parameters {
+                //     string(name: 'PERSON', defaultValue: 'Mr Jenkins', description: 'Who should I say hello to?')
+
+                //     text(name: 'BIOGRAPHY', defaultValue: '', description: 'Enter some information about the person')
+
+                //     booleanParam(name: 'DEPLOY', defaultValue: true, description: 'Toggle this value')
+
+                //     choice(name: 'CHOICE', choices: ['One', 'Two', 'Three'], description: 'Pick something')
+
+                //     password(name: 'PASSWORD', defaultValue: 'SECRET', description: 'Enter a password')
+                // }
+    
+            stages {
+
+                stage('Read Version') {
+
+                    steps {
+
+                        script {
+
+                                    // Read the file from the workspace
+                            def packageJson = readJSON file: 'package.json'
+                            
+                            // Access properties
+                            appversion = packageJson.version
+                            // def name = packageJson.name
+                            
+                            echo "Building version ${appversion}"
+
+                        }
+
+                    }
+
+
+                }
+
+
+                stage('Installdependencies') {
+                    steps {
+                        script {
+
+                                sh """    
+                                        
+
+                                        npm install
+                                    
+
+                                """    
+                        }
+                    }
+                }
+
+                stage('Unit tests'){
+            steps {
+                script {
+                    sh """
+                        npm test
+                    """
+                }
+            }
+        }
+                stage('SonarQube Analysis') {
+            steps {
+                script {
+                    def scannerHome = tool name: 'sonar-8'
+
+                    withSonarQubeEnv('sonar-server') {
+                        sh "${scannerHome}/bin/sonar-scanner"
+                    }
+                }
+            }
+        }
+
+        stage('Quality Gate') {
+            steps {
+                timeout(time: 1, unit: 'HOURS') {
+                    waitForQualityGate abortPipeline: true
+                }
+            }
+        }
+        
+                stage('dockerbuild') {
+                    steps {
+                        script {
+
+                                withAWS(credentials: 'aws-creds', region: 'us-east-1') {
+                            
+                        
+                                sh """    
+                                aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin ${acc_id}.dkr.ecr.us-east-1.amazonaws.com
+                                    docker build -t ${acc_id}.dkr.ecr.us-east-1.amazonaws.com/roboshop/catalogue:${appversion} .
+                                    docker push ${acc_id}.dkr.ecr.us-east-1.amazonaws.com/roboshop/catalogue:${appversion}
+                           
+                                 """    
+                        }
+                    }
+                }
+
+                }
+              
+            }
+
+}         
+    
+    
+    
